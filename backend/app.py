@@ -23,10 +23,22 @@ SQS_ENABLED = os.getenv("SQS_ENABLED", "false").lower() == "true"
 SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL", "")
 DDB_TABLE = os.getenv("DDB_TABLE", "edge-fog-sensor-data")
 
+class Reading(BaseModel):
+    sensor_id: str
+    sensor_type: str
+    value: float
+    unit: str
+    timestamp: float
+    processed_by: str | None = None
+    edge_node: str | None = None
+    latency: float | None = None
+    status: str | None = None
+
 class SensorBatch(BaseModel):
     fog_id: str = "fog-001"
+    readings: list[Reading] = Field(default_factory=list)
     #processed_by: str = "fog". #Due to overwriting Edge node readings
-    readings: list[dict[str, Any]] = Field(default_factory=list)
+    #readings: list[dict[str, Any]] = Field(default_factory=list).   #to resolve reading, have same consistent structure
     dispatch_timestamp: float = Field(default_factory=time.time)
 
 def init_sqlite():
@@ -58,12 +70,12 @@ def store_local(batch: SensorBatch):
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     str(uuid.uuid4()),
-                    r.get("sensor_type", "unknown"),
-                    r.get("sensor_id"),
-                    float(r.get("value", 0)),
-                    r.get("unit"),
-                    float(r.get("timestamp", time.time())),
-                    r.get("processed_by", "unknown"),
+                    r.sensor_type,
+                    r.sensor_id,
+                    r.value,
+                    r.unit,
+                    r.timestamp,
+                    float(r.processed_by),
                     batch.fog_id,
                 ),
             )
@@ -77,12 +89,12 @@ def store_dynamodb(batch: SensorBatch):
         for r in batch.readings:
             writer.put_item(Item={
                 "id": str(uuid.uuid4()),
-                "sensor_type": r.get("sensor_type", "unknown"),
-                "sensor_id": r.get("sensor_id", "unknown"),
-                "value": float(r.get("value", 0)),
-                "unit": r.get("unit", ""),
-                "timestamp": float(r.get("timestamp", time.time())),
-                "processed_by": r.get("processed_by", "unknown"),
+                "sensor_type": r.sensor_type,
+                "sensor_id": r.sensor_id,
+                "value": r.value,
+                "unit": r.unit,
+                "timestamp": float(r.timestamp),
+                "processed_by": r.processed_by,
                 "fog_id": batch.fog_id,
             })
 
