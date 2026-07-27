@@ -27,6 +27,8 @@ services:
       BACKEND_URL: http://backend:8000
       CONFIG_PATH: /app/config.yaml
       FOG_PORT: 8102
+    cpus: 1.0
+    mem_limit: 512m
     depends_on:
       - edge
       - backend

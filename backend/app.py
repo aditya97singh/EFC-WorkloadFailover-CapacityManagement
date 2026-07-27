@@ -75,7 +75,7 @@ def store_local(batch: SensorBatch):
                     r.value,
                     r.unit,
                     r.timestamp,
-                    float(r.processed_by),
+                    r.processed_by,
                     batch.fog_id,
                 ),
             )
@@ -93,7 +93,7 @@ def store_dynamodb(batch: SensorBatch):
                 "sensor_id": r.sensor_id,
                 "value": r.value,
                 "unit": r.unit,
-                "timestamp": float(r.timestamp),
+                "timestamp": r.timestamp,
                 "processed_by": r.processed_by,
                 "fog_id": batch.fog_id,
             })

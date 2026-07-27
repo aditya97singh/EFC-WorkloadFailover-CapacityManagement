@@ -4,6 +4,7 @@ import statistics
 import time
 import uuid
 from collections import defaultdict, deque
+from pathlib import Path
 
 import httpx
 import psutil
@@ -24,6 +25,7 @@ EDGE_FAIL = float(CONFIG["fog"]["edge_failover_cpu_percent"])
 EDGE_RECOVER = float(CONFIG["fog"]["edge_recovery_cpu_percent"])
 FOG_FAIL = float(CONFIG["fog"]["fog_failover_cpu_percent"])
 FOG_RECOVER = float(CONFIG["fog"]["fog_recovery_cpu_percent"])
+FOG_WORK_ITERATIONS = int(os.getenv("FOG_WORK_ITERATIONS", "50000"))
 
 app = FastAPI(title="Virtual Fog SRE Manager")
 
@@ -66,8 +68,8 @@ async def route_to_edge(reading: dict):
         return r.json()
 
 def fog_local_process(reading: dict):
-    # Lightweight fog-side processing. The Fog is the control plane,
-    # but it can also execute overflow work.
+    # Fog can execute overflow work when Edge is overloaded.
+    fog_cpu_work(FOG_WORK_ITERATIONS)
     stats["routed_fog"] += 1
     return {
         **reading,
@@ -78,11 +80,6 @@ def fog_local_process(reading: dict):
 async def send_batch(readings):
     if not readings:
         return
-
-    print("\n===== Sending batch =====")
-    for r in readings:
-        print(r["sensor_type"], r["processed_by"])
-    print("=========================\n")
 
     payload = {
         "fog_id": "fog-001",
@@ -95,6 +92,95 @@ async def send_batch(readings):
         r.raise_for_status()
     stats["dispatched_batches"] += 1
 
+_cpu_prev_usage = None
+_cpu_prev_time = None
+
+
+def read_cgroup_cpu():
+    """
+    Measure CPU usage relative to the container's CPU quota.
+    Supports cgroup v2 and cgroup v1.
+    """
+    global _cpu_prev_usage, _cpu_prev_time
+
+    now = time.monotonic()
+
+    # cgroup v2
+    cpu_stat = Path("/sys/fs/cgroup/cpu.stat")
+    cpu_max = Path("/sys/fs/cgroup/cpu.max")
+
+    if cpu_stat.exists() and cpu_max.exists():
+        stats = {}
+
+        for line in cpu_stat.read_text().splitlines():
+            key, value = line.split()
+            stats[key] = int(value)
+
+        usage_usec = stats.get("usage_usec", 0)
+
+        max_parts = cpu_max.read_text().strip().split()
+
+        if max_parts[0] == "max":
+            quota_cpus = os.cpu_count() or 1
+        else:
+            quota = int(max_parts[0])
+            period = int(max_parts[1])
+            quota_cpus = quota / period
+
+    else:
+        # cgroup v1 fallback
+        usage_path = Path("/sys/fs/cgroup/cpuacct/cpuacct.usage")
+        quota_path = Path("/sys/fs/cgroup/cpu/cpu.cfs_quota_us")
+        period_path = Path("/sys/fs/cgroup/cpu/cpu.cfs_period_us")
+
+        if not (
+            usage_path.exists()
+            and quota_path.exists()
+            and period_path.exists()
+        ):
+            return psutil.cpu_percent(interval=0.05)
+
+        usage_usec = int(usage_path.read_text()) / 1000
+
+        quota = int(quota_path.read_text())
+        period = int(period_path.read_text())
+
+        if quota <= 0:
+            quota_cpus = os.cpu_count() or 1
+        else:
+            quota_cpus = quota / period
+
+    if _cpu_prev_usage is None:
+        _cpu_prev_usage = usage_usec
+        _cpu_prev_time = now
+        return 0.0
+
+    delta_usage = usage_usec - _cpu_prev_usage
+    delta_time_usec = (now - _cpu_prev_time) * 1_000_000
+
+    _cpu_prev_usage = usage_usec
+    _cpu_prev_time = now
+
+    if delta_time_usec <= 0:
+        return 0.0
+
+    cpu_percent = (
+        (delta_usage / delta_time_usec)
+        / max(quota_cpus, 0.001)
+        * 100
+    )
+
+    return min(100.0, max(0.0, cpu_percent))
+
+
+def fog_cpu_work(iterations: int):
+    value = 0
+
+    for i in range(iterations):
+        value = (value * 31 + i) % 1000003
+
+    return value
+
 async def manager_loop():
     global state
     while True:
@@ -105,7 +191,7 @@ async def manager_loop():
             edge_cpu = 100.0
 
         # Fog's own process is used as a simple local control-plane metric.
-        fog_cpu = psutil.cpu_percent(interval=0.05)
+        fog_cpu = read_cgroup_cpu()
         stats["edge_cpu"] = edge_cpu
         stats["fog_cpu"] = fog_cpu
 
