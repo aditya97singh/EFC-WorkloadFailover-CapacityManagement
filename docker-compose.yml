@@ -1,0 +1,50 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      STORAGE_MODE: sqlite
+      DATABASE_PATH: /data/sensors.db
+      SQS_ENABLED: "false"
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_data:/data
+
+  edge:
+    build: ./edge
+    environment:
+      CPU_WORK_ITERATIONS: 180000
+      EDGE_PORT: 8101
+    cpus: 1.0
+    mem_limit: 512m
+    ports:
+      - "8101:8101"
+
+  fog:
+    build: ./fog
+    environment:
+      EDGE_URL: http://edge:8101
+      BACKEND_URL: http://backend:8000
+      CONFIG_PATH: /app/config.yaml
+      FOG_PORT: 8102
+    depends_on:
+      - edge
+      - backend
+    ports:
+      - "8102:8102"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+
+  sensors:
+    build: ./sensors
+    environment:
+      FOG_URL: http://fog:8102
+      CONFIG_PATH: /app/config.yaml
+      SENSOR_MULTIPLIER: ${SENSOR_MULTIPLIER:-1}
+    depends_on:
+      - fog
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+
+volumes:
+  backend_data:

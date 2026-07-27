@@ -1,0 +1,39 @@
+sensors:
+  temperature:
+    frequency_seconds: 0.25
+    min: 18
+    max: 35
+    unit: "C"
+  humidity:
+    frequency_seconds: 0.35
+    min: 35
+    max: 85
+    unit: "%"
+  pressure:
+    frequency_seconds: 0.50
+    min: 990
+    max: 1035
+    unit: "hPa"
+  light:
+    frequency_seconds: 0.20
+    min: 50
+    max: 1200
+    unit: "lux"
+  vibration:
+    frequency_seconds: 0.15
+    min: 0.05
+    max: 3.0
+    unit: "g"
+
+fog:
+  dispatch_interval_seconds: 3
+  batch_size: 50
+  edge_failover_cpu_percent: 90
+  edge_recovery_cpu_percent: 50
+  fog_failover_cpu_percent: 90
+  fog_recovery_cpu_percent: 50
+
+load:
+  multiplier: 1
+  cpu_work_iterations: 180000
+  task_timeout_seconds: 5

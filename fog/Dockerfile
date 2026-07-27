@@ -1,0 +1,7 @@
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY manager.py .
+EXPOSE 8102
+CMD ["uvicorn","manager:app","--host","0.0.0.0","--port","8102"]
