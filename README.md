@@ -15,7 +15,7 @@ A deployable reference project for a Fog & Edge Computing module.
 - DynamoDB persistence
 - Responsive dashboard
 - Docker Compose local deployment
-- Terraform AWS deployment for the cloud backend
+- AWS deployment for the cloud backend
 - 1,000-task stress-test script and graph generation
 
 ## Architecture
