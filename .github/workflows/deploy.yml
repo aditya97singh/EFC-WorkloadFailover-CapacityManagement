@@ -9,7 +9,7 @@ on:
 
 jobs:
   test-and-build:
-    name: Build and Deploy on EC2
+    name: Test and Build
     runs-on: ubuntu-latest
 
     steps:
@@ -43,7 +43,7 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
+          username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -e
@@ -52,6 +52,9 @@ jobs:
 
             echo "Pulling latest code..."
             git pull origin main
+            git remote set-url origin https://${{ secrets.GH_TOKEN }}@github.com/aditya97singh/EFC-WorkloadFailover-CapacityManagement.git
+            git fetch origin
+            git reset --hard origin/main
 
             echo "Stopping old containers..."
             docker compose down
