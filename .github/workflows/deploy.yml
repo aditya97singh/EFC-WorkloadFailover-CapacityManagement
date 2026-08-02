@@ -45,35 +45,52 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
+
           script: |
             set -e
 
             cd ~/EFC-WorkloadFailover-CapacityManagement
 
-            echo "Pulling latest code..."
-            git pull origin main
-            git remote set-url origin https://${{ secrets.GH_TOKEN }}@github.com/aditya97singh/EFC-WorkloadFailover-CapacityManagement.git
-            git fetch origin
+            echo "================================"
+            echo "Updating repository"
+            echo "================================"
+
+            git fetch origin main
             git reset --hard origin/main
 
-            echo "Stopping old containers..."
-            docker compose down
+            echo "================================"
+            echo "Building updated containers"
+            echo "================================"
 
-            echo "Building updated containers..."
             docker compose build --no-cache
 
-            echo "Starting application..."
+            echo "================================"
+            echo "Starting application"
+            echo "================================"
+
             docker compose up -d
 
-            echo "Waiting for backend..."
+            echo "================================"
+            echo "Waiting for backend"
+            echo "================================"
+
             sleep 10
 
-            echo "Checking backend health..."
-            curl --fail --max-time 10 http://localhost:8000/health
+            echo "================================"
+            echo "Checking backend health"
+            echo "================================"
+
+            curl --fail --max-time 10 \
+              http://localhost:8000/health
 
             echo ""
-            echo "Docker containers:"
+            echo "================================"
+            echo "Docker containers"
+            echo "================================"
+
             docker compose ps
 
             echo ""
-            echo "Deployment completed successfully."
+            echo "================================"
+            echo "Deployment completed successfully"
+            echo "================================"
