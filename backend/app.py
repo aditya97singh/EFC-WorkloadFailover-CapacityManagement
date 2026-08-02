@@ -22,6 +22,7 @@ DATABASE_PATH = os.getenv("DATABASE_PATH", "/data/sensors.db")
 SQS_ENABLED = os.getenv("SQS_ENABLED", "false").lower() == "true"
 SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL", "")
 DDB_TABLE = os.getenv("DDB_TABLE", "edge-fog-sensor-data")
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 
 class Reading(BaseModel):
     sensor_id: str
@@ -84,7 +85,7 @@ def store_local(batch: SensorBatch):
 def store_dynamodb(batch: SensorBatch):
     if boto3 is None:
         raise RuntimeError("boto3 is required for DynamoDB mode")
-    table = boto3.resource("dynamodb").Table(DDB_TABLE)
+    table = boto3.resource("dynamodb",region_name=AWS_REGION).Table(DDB_TABLE)
     with table.batch_writer() as writer:
         for r in batch.readings:
             writer.put_item(Item={
@@ -109,7 +110,7 @@ def queue_batch(batch: SensorBatch):
         return False
     if boto3 is None or not SQS_QUEUE_URL:
         raise RuntimeError("SQS is enabled but boto3/SQS_QUEUE_URL is missing")
-    sqs = boto3.client("sqs")
+    sqs = boto3.client("sqs",region_name=AWS_REGION)
     sqs.send_message(QueueUrl=SQS_QUEUE_URL, MessageBody=batch.model_dump_json())
     return True
 
@@ -147,7 +148,7 @@ def query_local(sensor_type: str | None = None, limit: int = 200):
 def query_dynamodb(sensor_type: str | None = None, limit: int = 200):
     if boto3 is None:
         raise RuntimeError("boto3 is required for DynamoDB mode")
-    table = boto3.resource("dynamodb").Table(DDB_TABLE)
+    table = boto3.resource("dynamodb",region_name=AWS_REGION).Table(DDB_TABLE)
     items = table.scan(Limit=min(limit, 1000)).get("Items", [])
     if sensor_type:
         items = [x for x in items if x.get("sensor_type") == sensor_type]

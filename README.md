@@ -59,7 +59,7 @@ The Fog is intentionally a manager/control plane. It monitors Edge and Fog capac
 - 2+ CPU cores recommended
 
 ### AWS
-- manually to create ECR, ECS, ALB, SQS, Lambda, DynamoDB, IAM and CloudWatch resources
+- manually to create EC2, ALB, SQS, Lambda, DynamoDB, IAM and CloudWatch resources
 
 ## 1. Run locally
 
@@ -216,7 +216,7 @@ Recommended screenshots/figures:
 6. Task distribution by processing tier
 7. Latency graph with the 5-second SLO
 8. Before/after comparison with failover disabled/enabled
-9. AWS ECS/SQS/Lambda/DynamoDB deployment
+9. AWS EC2/SQS/Lambda/DynamoDB deployment
 10. CloudWatch monitoring
 
 ## Important note

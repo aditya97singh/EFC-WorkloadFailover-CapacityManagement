@@ -1,0 +1,76 @@
+name: Build and Deploy Edge-Fog-Cloud
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  test-and-build:
+    name: Build and Deploy on EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check Python syntax
+        run: |
+          python -m compileall backend edge fog sensors
+
+      - name: Build Docker images
+        run: |
+          docker compose build
+
+      - name: Validate Docker Compose
+        run: |
+          docker compose config
+
+  deploy:
+    name: Deploy to EC2
+    needs: test-and-build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy application to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            cd ~/EFC-WorkloadFailover-CapacityManagement
+
+            echo "Pulling latest code..."
+            git pull origin main
+
+            echo "Stopping old containers..."
+            docker compose down
+
+            echo "Building updated containers..."
+            docker compose build --no-cache
+
+            echo "Starting application..."
+            docker compose up -d
+
+            echo "Waiting for backend..."
+            sleep 10
+
+            echo "Checking backend health..."
+            curl --fail --max-time 10 http://localhost:8000/health
+
+            echo ""
+            echo "Docker containers:"
+            docker compose ps
+
+            echo ""
+            echo "Deployment completed successfully."
