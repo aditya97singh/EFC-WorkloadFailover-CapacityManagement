@@ -1,8 +1,13 @@
 services:
   backend:
     build: ./backend
-    env_file:
-    - .env
+    environment:
+      STORAGE_MODE: ${STORAGE_MODE:-sqlite}
+      DATABASE_PATH: ${DATABASE_PATH:-/data/sensors.db}
+      SQS_ENABLED: ${SQS_ENABLED:-false}
+      DDB_TABLE: ${DDB_TABLE:-edge-fog-sensor-data}
+      SQS_QUEUE_URL: ${SQS_QUEUE_URL:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
     ports:
       - "8000:8000"
     volumes:
@@ -22,7 +27,7 @@ services:
     build: ./fog
     environment:
       EDGE_URL: http://edge:8101
-      BACKEND_URL: ${BACKEND_URL}
+      BACKEND_URL: ${BACKEND_URL:-http://backend:8000}
       CONFIG_PATH: /app/config.yaml
       FOG_PORT: 8102
     cpus: 1.0
