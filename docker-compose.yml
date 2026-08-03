@@ -1,10 +1,8 @@
 services:
   backend:
     build: ./backend
-    environment:
-      STORAGE_MODE: sqlite
-      DATABASE_PATH: /data/sensors.db
-      SQS_ENABLED: "false"
+    env_file:
+    - .env
     ports:
       - "8000:8000"
     volumes:
