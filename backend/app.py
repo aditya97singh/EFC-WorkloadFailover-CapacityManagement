@@ -211,7 +211,7 @@ canvas{width:100%;height:260px}
 <script>
 const sensors=["temperature","humidity","pressure","light","vibration"];
 async function refresh(){
-  const all=await (await fetch("/api/v1/sensors?limit=300")).json();
+  const all = await (await fetch("/api/v1/sensors?limit=300&_t=" + Date.now(), {cache: "no-store"})).json();
   const groups={};
   all.items.forEach(x=>(groups[x.sensor_type]??=[]).push(x));
   document.getElementById("cards").innerHTML=sensors.map(s=>{
@@ -220,7 +220,7 @@ async function refresh(){
       <div class="value">${x?Number(x.value).toFixed(2):"—"}</div>
       <div class="small">${x?.unit||""} · ${x?.processed_by||"waiting"}</div></div>`;
   }).join("");
-  const st=await (await fetch("/api/v1/system/status")).json();
+  const st = await (await fetch("/api/v1/system/status?_t=" + Date.now(), {cache: "no-store"})).json();
   document.getElementById("status").textContent=JSON.stringify(st,null,2);
   draw(groups.temperature||[]);
 }
